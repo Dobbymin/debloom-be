@@ -11,6 +11,10 @@ const options = {
     },
     servers: [
       {
+        url: 'https://debloom-be.vercel.app/swagger-ui/',
+        description: 'Deployed Server',
+      },
+      {
         url: 'http://localhost:8081/',
         description: 'Local Server',
       },

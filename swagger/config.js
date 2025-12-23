@@ -1,3 +1,4 @@
+import path from 'path';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 
@@ -57,7 +58,7 @@ const options = {
       },
     ],
   },
-  apis: ['./swagger/*.swagger.js'],
+  apis: [path.join(process.cwd(), 'swagger/*.swagger.js')],
 };
 
 const specs = swaggerJsdoc(options);

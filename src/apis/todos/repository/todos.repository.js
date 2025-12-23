@@ -4,94 +4,121 @@ import { supabase } from '../../../db/supabase.js';
 
 export class TodosRepository {
   async findAll() {
-    // Supabase에서 평탄화된 뷰를 조회합니다.
+    // todo_groups를 기준으로 조회하여 todos가 없는 그룹도 포함
     const { data, error } = await supabase
-      .from('todos_view_flat')
-      .select('categoryId, todoDate, name, categoryCreatedAt, todosId, content, isCompleted')
-      .order('todoDate', { ascending: true })
-      .order('categoryId', { ascending: true })
-      .order('todosId', { ascending: true });
+      .from('todo_groups')
+      .select(
+        `
+        id,
+        todo_date,
+        category_id,
+        categories (
+          id,
+          name,
+          created_at
+        ),
+        todos (
+          id,
+          content,
+          is_completed
+        )
+      `
+      )
+      .order('todo_date', { ascending: true })
+      .order('category_id', { ascending: true })
+      .order('id', { foreignTable: 'todos', ascending: true }); // todos 정렬
 
     if (error) throw new Error(`Supabase query failed: ${error.message}`);
 
     const rows = data || [];
 
-    // 날짜(date) 단위로 그룹핑하고, 각 날짜 내에서 카테고리별로 하위 그룹핑
+    // 날짜별로 그룹핑
     const dateMap = new Map(); // key: date string -> { date, totalTodosCount, categories: [] }
 
-    for (const row of rows) {
-      const dateKey = row.todoDate;
+    for (const group of rows) {
+      const dateKey = group.todo_date;
       let dateGroup = dateMap.get(dateKey);
       if (!dateGroup) {
-        dateGroup = { date: dateKey, totalTodosCount: 0, categories: [], _catMap: new Map() };
+        dateGroup = { date: dateKey, totalTodosCount: 0, categories: [] };
         dateMap.set(dateKey, dateGroup);
       }
 
-      let catGroup = dateGroup._catMap.get(row.categoryId);
-      if (!catGroup) {
-        catGroup = {
-          categoryId: row.categoryId,
-          name: row.name,
-          categoryCreatedAt: row.categoryCreatedAt,
-          todos: [],
-        };
-        dateGroup._catMap.set(row.categoryId, catGroup);
-        dateGroup.categories.push(catGroup);
-      }
+      // 각 그룹(todo_group)은 하나의 카테고리에 해당
+      const categoryData = {
+        categoryId: group.categories.id,
+        name: group.categories.name,
+        categoryCreatedAt: group.categories.created_at,
+        todos: (group.todos || []).map((t) => ({
+          todosId: t.id,
+          content: t.content,
+          isCompleted: t.is_completed,
+        })),
+      };
 
-      catGroup.todos.push({ todosId: row.todosId, content: row.content, isCompleted: row.isCompleted });
-      dateGroup.totalTodosCount += 1;
+      dateGroup.categories.push(categoryData);
+      dateGroup.totalTodosCount += categoryData.todos.length;
     }
 
-    // 정렬: 날짜 오름차순
-    const groupedByDate = Array.from(dateMap.values())
-      .map(({ _catMap, ...rest }) => rest)
-      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-
-    return groupedByDate;
+    return Array.from(dateMap.values());
   }
 
   async findByDate(targetDate) {
-    // 특정 날짜의 todos만 조회
+    // 특정 날짜의 todo_groups 조회 (todos가 없어도 포함)
     const { data, error } = await supabase
-      .from('todos_view_flat')
-      .select('categoryId, todoDate, name, categoryCreatedAt, todosId, content, isCompleted')
-      .eq('todoDate', targetDate)
-      .order('categoryId', { ascending: true })
-      .order('todosId', { ascending: true });
+      .from('todo_groups')
+      .select(
+        `
+        id,
+        todo_date,
+        category_id,
+        categories (
+          id,
+          name,
+          created_at
+        ),
+        todos (
+          id,
+          content,
+          is_completed
+        )
+      `
+      )
+      .eq('todo_date', targetDate)
+      .order('category_id', { ascending: true })
+      .order('id', { foreignTable: 'todos', ascending: true });
 
     if (error) throw new Error(`Supabase query failed: ${error.message}`);
 
-    const rows = data || [];
+    const groups = data || [];
 
-    if (rows.length === 0) {
+    if (groups.length === 0) {
+      // 해당 날짜에 그룹 자체가 없으면 빈 배열 반환 (날짜 객체도 없는지, 아니면 빈 날짜 객체인지 확인 필요. 기존 로직은 빈배열)
+      // 기존: return []
       return [];
     }
 
-    // 해당 날짜의 데이터를 카테고리별로 그룹핑
-    const categoryMap = new Map();
     let totalTodosCount = 0;
+    const categories = groups.map((group) => {
+      const mappedTodos = (group.todos || []).map((t) => ({
+        todosId: t.id,
+        content: t.content,
+        isCompleted: t.is_completed,
+      }));
+      totalTodosCount += mappedTodos.length;
 
-    for (const row of rows) {
-      let catGroup = categoryMap.get(row.categoryId);
-      if (!catGroup) {
-        catGroup = {
-          categoryId: row.categoryId,
-          name: row.name,
-          categoryCreatedAt: row.categoryCreatedAt,
-          todos: [],
-        };
-        categoryMap.set(row.categoryId, catGroup);
-      }
-      catGroup.todos.push({ todosId: row.todosId, content: row.content, isCompleted: row.isCompleted });
-      totalTodosCount += 1;
-    }
+      return {
+        categoryId: group.categories.id,
+        name: group.categories.name,
+        categoryCreatedAt: group.categories.created_at,
+        todos: mappedTodos,
+      };
+    });
 
     return [
       {
         date: targetDate,
         totalTodosCount,
-        categories: Array.from(categoryMap.values()),
+        categories,
       },
     ];
   }

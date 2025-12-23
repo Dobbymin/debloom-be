@@ -21,11 +21,13 @@
     ]
   },
   "dependencies": {
-    "express": "^5.2.1"
+    "@supabase/supabase-js": "^2.89.0",
+    "dayjs": "^1.11.19",
+    "express": "^5.2.1",
+    "postgres": "^3.4.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@supabase/supabase-js": "^2.89.0",
     "@trivago/prettier-plugin-sort-imports": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

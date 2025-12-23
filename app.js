@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import { router } from './src/routes/router.js';
+import { setupSwagger } from './swagger/config.js';
 
 const PORT = process.env.PORT || 8081;
 
@@ -34,6 +35,9 @@ const createApp = async () => {
 
   // API 라우터 등록
   router(app);
+
+  // Swagger 설정 적용
+  setupSwagger(app);
 
   return app;
 };

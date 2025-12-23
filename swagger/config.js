@@ -11,7 +11,7 @@ const options = {
     },
     servers: [
       {
-        url: 'https://debloom-be.vercel.app/swagger-ui/',
+        url: 'https://debloom-be.vercel.app/',
         description: 'Deployed Server',
       },
       {

@@ -39,6 +39,17 @@ const createApp = async () => {
   // Swagger 설정 적용
   setupSwagger(app);
 
+  // Swagger 파일 디버깅용 임시 라우트
+  app.get('/debug-swagger-files', (req, res) => {
+    const swaggerDir = path.join(process.cwd(), 'swagger');
+    fs.readdir(swaggerDir, (err, files) => {
+      if (err) {
+        return res.status(500).json({ error: 'Failed to read swagger directory', details: err });
+      }
+      res.json({ files });
+    });
+  });
+
   return app;
 };
 

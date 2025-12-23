@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+echo "let's check the code! =^ . ｡.^="
+
+pnpm lint-staged
